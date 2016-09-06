@@ -27,7 +27,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             try
             {
                 socket.Init(Thread.Loop, Thread.QueueCloseHandle);
-                socket.NoDelay(ServerOptions.NoDelay);
+                socket.NoDelay(ServiceContext.ServerOptions.NoDelay);
                 socket.Bind(ServerAddress);
 
                 // If requested port was "0", replace with assigned dynamic port.
@@ -54,7 +54,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             try
             {
                 acceptSocket.Init(Thread.Loop, Thread.QueueCloseHandle);
-                acceptSocket.NoDelay(ServerOptions.NoDelay);
+                acceptSocket.NoDelay(ServiceContext.ServerOptions.NoDelay);
                 listenSocket.Accept(acceptSocket);
                 DispatchConnection(acceptSocket);
             }

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 {
-    public class KestrelEngine : ServiceContext, IDisposable
+    public class KestrelEngine : IDisposable
     {
         public KestrelEngine(ServiceContext context)
             : this(new Libuv(), context)
@@ -19,13 +19,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
         // For testing
         internal KestrelEngine(Libuv uv, ServiceContext context)
-           : base(context)
         {
             Libuv = uv;
+            ServiceContext = context;
             Threads = new List<KestrelThread>();
         }
 
         public Libuv Libuv { get; private set; }
+        public ServiceContext ServiceContext { get; set; }
         public List<KestrelThread> Threads { get; private set; }
 
         public void Start(int count)
@@ -71,16 +72,16 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
                     if (single)
                     {
                         var listener = usingPipes ?
-                            (Listener) new PipeListener(this) :
-                            new TcpListener(this);
+                            (Listener) new PipeListener(ServiceContext) :
+                            new TcpListener(ServiceContext);
                         listeners.Add(listener);
                         listener.StartAsync(address, thread).Wait();
                     }
                     else if (first)
                     {
                         var listener = usingPipes
-                            ? (ListenerPrimary) new PipeListenerPrimary(this)
-                            : new TcpListenerPrimary(this);
+                            ? (ListenerPrimary) new PipeListenerPrimary(ServiceContext)
+                            : new TcpListenerPrimary(ServiceContext);
 
                         listeners.Add(listener);
                         listener.StartAsync(pipeName, address, thread).Wait();
@@ -88,8 +89,8 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
                     else
                     {
                         var listener = usingPipes
-                            ? (ListenerSecondary) new PipeListenerSecondary(this)
-                            : new TcpListenerSecondary(this);
+                            ? (ListenerSecondary) new PipeListenerSecondary(ServiceContext)
+                            : new TcpListenerSecondary(ServiceContext);
                         listeners.Add(listener);
                         listener.StartAsync(pipeName, address, thread).Wait();
                     }
@@ -116,7 +117,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
             if (!Task.WaitAll(disposeTasks, TimeSpan.FromSeconds(2.5)))
             {
-                Log.LogError(0, null, "Disposing listeners failed");
+                ServiceContext.Log.LogError(0, null, "Disposing listeners failed");
             }
         }
     }

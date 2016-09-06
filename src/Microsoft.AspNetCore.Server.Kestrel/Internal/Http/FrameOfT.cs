@@ -32,7 +32,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             {
                 while (!_requestProcessingStopping)
                 {
-                    ConnectionControl.SetTimeout(_keepAliveMilliseconds);
+                    ConnectionContext.ConnectionControl.SetTimeout(_keepAliveMilliseconds);
 
                     while (!_requestProcessingStopping && TakeStartLine(SocketInput) != RequestLineStatus.Done)
                     {
@@ -154,7 +154,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             }
             catch (Exception ex)
             {
-                Log.LogWarning(0, ex, "Connection processing ended abnormally");
+                ServiceContext.Log.LogWarning(0, ex, "Connection processing ended abnormally");
             }
             finally
             {
@@ -165,12 +165,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                     // If _requestAborted is set, the connection has already been closed.
                     if (Volatile.Read(ref _requestAborted) == 0)
                     {
-                        ConnectionControl.End(ProduceEndType.SocketShutdown);
+                        ConnectionContext.ConnectionControl.End(ProduceEndType.SocketShutdown);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.LogWarning(0, ex, "Connection shutdown abnormally");
+                    ServiceContext.Log.LogWarning(0, ex, "Connection shutdown abnormally");
                 }
             }
         }

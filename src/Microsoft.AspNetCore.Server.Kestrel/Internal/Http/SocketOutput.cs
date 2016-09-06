@@ -76,7 +76,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             _tasksPending = new Queue<WaitingTask>(_initialTaskQueues);
             _writeContextPool = new Queue<WriteContext>(_maxPooledWriteContexts);
             _writeReqPool = thread.WriteReqPool;
-            _maxBytesPreCompleted = connection.ServerOptions.Limits.MaxResponseBufferSize;
+            _maxBytesPreCompleted = connection.ServiceContext.ServerOptions.Limits.MaxResponseBufferSize;
 
             _head = thread.Memory.Lease();
             _tail = _head;

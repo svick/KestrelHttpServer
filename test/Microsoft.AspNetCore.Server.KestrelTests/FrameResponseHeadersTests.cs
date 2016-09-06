@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel;
+using Microsoft.AspNetCore.Server.Kestrel.Internal;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
 using Microsoft.Extensions.Primitives;
 using Xunit;
@@ -18,12 +19,16 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
         {
             var serverOptions = new KestrelServerOptions();
 
-            var connectionContext = new ConnectionContext
+            var serviceContext = new ServiceContext
             {
                 DateHeaderValueManager = new DateHeaderValueManager(),
-                ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
-                ServerOptions = serverOptions,
+                ServerOptions = serverOptions
             };
+            var listenerContext = new ListenerContext(serviceContext)
+            {
+                ServerAddress = ServerAddress.FromUrl("http://localhost:5000")
+            };
+            var connectionContext = new ConnectionContext(listenerContext);
 
             var frame = new Frame<object>(application: null, context: connectionContext);
 
@@ -61,14 +66,14 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
         [InlineData("Ser\u0080ver", "Data")]
         [InlineData("Server", "Da\u0080ta")]
         [InlineData("Unknown\u0080-Header", "Data")]
-        [InlineData("Ser™ver", "Data")]
-        [InlineData("Server", "Da™ta")]
-        [InlineData("Unknown™-Header", "Data")]
-        [InlineData("Ser™ver", "Data")]
-        [InlineData("šerver", "Data")]
-        [InlineData("Server", "Dašta")]
-        [InlineData("Unknownš-Header", "Data")]
-        [InlineData("Seršver", "Data")]
+        [InlineData("Serï¿½ver", "Data")]
+        [InlineData("Server", "Daï¿½ta")]
+        [InlineData("Unknownï¿½-Header", "Data")]
+        [InlineData("Serï¿½ver", "Data")]
+        [InlineData("ï¿½erver", "Data")]
+        [InlineData("Server", "Daï¿½ta")]
+        [InlineData("Unknownï¿½-Header", "Data")]
+        [InlineData("Serï¿½ver", "Data")]
         public void AddingControlOrNonAsciiCharactersToHeadersThrows(string key, string value)
         {
             var responseHeaders = new FrameResponseHeaders();
