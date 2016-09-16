@@ -139,6 +139,22 @@ namespace Microsoft.AspNetCore.Testing
             }
         }
 
+        public Task WaitForConnectionClose()
+        {
+            var tcs = new TaskCompletionSource<object>();
+            var eventArgs = new SocketAsyncEventArgs();
+            eventArgs.SetBuffer(new byte[1], 0, 1);
+            eventArgs.Completed += (s, e) =>
+            {
+                if (e.BytesTransferred == 0)
+                {
+                    tcs.SetResult(null);
+                }
+            };
+            _socket.ReceiveAsync(eventArgs);
+            return tcs.Task;
+        }
+
         public static Socket CreateConnectedLoopbackSocket(int port)
         {
             var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

@@ -70,6 +70,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         private int _requestHeadersParsed;
 
         protected readonly long _keepAliveMilliseconds;
+        private readonly long _requestHeadersTimeoutMilliseconds;
 
         public Frame(ConnectionContext context)
             : base(context)
@@ -78,6 +79,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             FrameControl = this;
             _keepAliveMilliseconds = (long)ServerOptions.Limits.KeepAliveTimeout.TotalMilliseconds;
+            _requestHeadersTimeoutMilliseconds = (long)ServerOptions.Limits.RequestHeadersTimeout.TotalMilliseconds;
         }
 
         public string ConnectionIdFeature { get; set; }
@@ -801,7 +803,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                     return RequestLineStatus.Empty;
                 }
 
-                ConnectionControl.CancelTimeout();
+                if (_requestProcessingStatus == RequestProcessingStatus.RequestPending)
+                {
+                    ConnectionControl.ResetTimeout(_requestHeadersTimeoutMilliseconds);
+                }
 
                 _requestProcessingStatus = RequestProcessingStatus.RequestStarted;
 
@@ -1070,6 +1075,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                         }
                         else if (ch == '\n')
                         {
+                            ConnectionControl.CancelTimeout();
                             consumed = end;
                             return true;
                         }

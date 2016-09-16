@@ -9,6 +9,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         void Resume();
         void End(ProduceEndType endType);
         void SetTimeout(long milliseconds);
+        void ResetTimeout(long milliseconds);
         void CancelTimeout();
     }
 }

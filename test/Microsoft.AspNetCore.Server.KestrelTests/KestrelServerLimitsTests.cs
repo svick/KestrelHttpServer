@@ -171,7 +171,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
         [Fact]
         public void RequestHeadersTimeoutDefault()
         {
-            Assert.Equal(TimeSpan.FromSeconds(30), new KestrelServerLimits().KeepAliveTimeout);
+            Assert.Equal(TimeSpan.FromSeconds(30), new KestrelServerLimits().RequestHeadersTimeout);
         }
 
         [Theory]

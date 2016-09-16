@@ -166,6 +166,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         {
             if (timestamp > _timeoutTimestamp)
             {
+                ConnectionControl.CancelTimeout();
                 StopAsync();
             }
 
@@ -297,13 +298,23 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         {
             Debug.Assert(_timeoutTimestamp == long.MaxValue, "Concurrent timeouts are not supported");
 
-            // Add KestrelThread.HeartbeatMilliseconds extra milliseconds since this can be called right before the next heartbeat.
-            Interlocked.Exchange(ref _timeoutTimestamp, _lastTimestamp + milliseconds + KestrelThread.HeartbeatMilliseconds);
+            AssignTimeout(milliseconds);
+        }
+
+        void IConnectionControl.ResetTimeout(long milliseconds)
+        {
+            AssignTimeout(milliseconds);
         }
 
         void IConnectionControl.CancelTimeout()
         {
             Interlocked.Exchange(ref _timeoutTimestamp, long.MaxValue);
+        }
+
+        private void AssignTimeout(long milliseconds)
+        {
+            // Add KestrelThread.HeartbeatMilliseconds extra milliseconds since this can be called right before the next heartbeat.
+            Interlocked.Exchange(ref _timeoutTimestamp, _lastTimestamp + milliseconds + KestrelThread.HeartbeatMilliseconds);
         }
 
         private static unsafe string GenerateConnectionId(long id)
