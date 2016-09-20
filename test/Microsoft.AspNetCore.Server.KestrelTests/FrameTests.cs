@@ -29,7 +29,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -73,7 +73,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -116,7 +116,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -158,7 +158,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -497,7 +497,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -557,7 +557,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
 
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = options
@@ -740,7 +740,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -787,7 +787,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),
@@ -969,7 +969,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
             {
                 var connectionContext = new ConnectionContext()
                 {
-                    ConnectionControl = new Mock<IConnectionControl>().Object,
+                    ConnectionControl = Mock.Of<IConnectionControl>(),
                     DateHeaderValueManager = new DateHeaderValueManager(),
                     ServerAddress = ServerAddress.FromUrl("http://localhost:5000"),
                     ServerOptions = new KestrelServerOptions(),

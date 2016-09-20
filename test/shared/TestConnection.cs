@@ -144,15 +144,24 @@ namespace Microsoft.AspNetCore.Testing
             var tcs = new TaskCompletionSource<object>();
             var eventArgs = new SocketAsyncEventArgs();
             eventArgs.SetBuffer(new byte[1], 0, 1);
-            eventArgs.Completed += (s, e) =>
+            eventArgs.Completed += ReceiveAsyncCompleted;
+            eventArgs.UserToken = tcs;
+
+            if (!_socket.ReceiveAsync(eventArgs))
             {
-                if (e.BytesTransferred == 0)
-                {
-                    tcs.SetResult(null);
-                }
-            };
-            _socket.ReceiveAsync(eventArgs);
+                ReceiveAsyncCompleted(this, eventArgs);
+            }
+
             return tcs.Task;
+        }
+
+        private void ReceiveAsyncCompleted(object sender, SocketAsyncEventArgs e)
+        {
+            if (e.BytesTransferred == 0)
+            {
+                var tcs = (TaskCompletionSource<object>)e.UserToken;
+                tcs.SetResult(null);
+            }
         }
 
         public static Socket CreateConnectedLoopbackSocket(int port)
