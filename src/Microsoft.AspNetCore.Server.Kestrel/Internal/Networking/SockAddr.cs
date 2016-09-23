@@ -7,14 +7,18 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Networking
 {
     public struct SockAddr
     {
+#pragma warning disable CS0414
         // this type represents native memory occupied by sockaddr struct
         // https://msdn.microsoft.com/en-us/library/windows/desktop/ms740496(v=vs.85).aspx
         // although the c/c++ header defines it as a 2-byte short followed by a 14-byte array,
         // the simplest way to reserve the same size in c# is with four nameless long values
+
+        // _field3 is not used by any methods, but this struct is used for P/Invokes.
         private long _field0;
         private long _field1;
         private long _field2;
         private long _field3;
+#pragma warning restore CS0414
 
         public SockAddr(long ignored)
         {
