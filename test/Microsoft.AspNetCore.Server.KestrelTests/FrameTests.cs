@@ -829,7 +829,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
 
                 frame.TakeStartLine(socketInput);
                 var expectedRequestHeadersTimeout = (long)connectionContext.ServerOptions.Limits.RequestHeadersTimeout.TotalMilliseconds;
-                connectionControl.Verify(cc => cc.ResetTimeout(expectedRequestHeadersTimeout));
+                connectionControl.Verify(cc => cc.ResetTimeout(expectedRequestHeadersTimeout, TimeoutAction.SendTimeoutResponse));
             }
         }
 
@@ -854,7 +854,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
                 frame.Reset();
 
                 frame.TakeStartLine(socketInput);
-                connectionControl.Verify(cc => cc.ResetTimeout(It.IsAny<long>()), Times.Never);
+                connectionControl.Verify(cc => cc.ResetTimeout(It.IsAny<long>(), It.IsAny<TimeoutAction>()), Times.Never);
             }
         }
 
@@ -1061,7 +1061,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
 
                 var requestProcessingTask = frame.RequestProcessingAsync();
                 var expectedKeepAliveTimeout = (long)connectionContext.ServerOptions.Limits.KeepAliveTimeout.TotalMilliseconds;
-                connectionControl.Verify(cc => cc.SetTimeout(expectedKeepAliveTimeout));
+                connectionControl.Verify(cc => cc.SetTimeout(expectedKeepAliveTimeout, TimeoutAction.CloseConnection));
 
                 frame.Stop();
                 socketInput.IncomingFin();

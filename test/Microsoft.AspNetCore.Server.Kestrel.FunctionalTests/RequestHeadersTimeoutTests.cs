@@ -44,7 +44,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                 await connection.Send(
                     "GET / HTTP/1.1",
                     headers);
-                await connection.WaitForConnectionClose().TimeoutAfter(LongDelay);
+                await ReceiveTimeoutResponse(connection, server.Context);
             }
         }
 
@@ -69,7 +69,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
             using (var connection = server.CreateConnection())
             {
                 await connection.Send(requestLine);
-                await connection.WaitForConnectionClose().TimeoutAfter(LongDelay);
+                await ReceiveTimeoutResponse(connection, server.Context);
             }
         }
 
@@ -118,6 +118,17 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                 "c",
                 "hello, world",
                 "0",
+                "",
+                "");
+        }
+
+        private async Task ReceiveTimeoutResponse(TestConnection connection, TestServiceContext testServiceContext)
+        {
+            await connection.Receive(
+                "HTTP/1.1 408 Request Timeout",
+                "Connection: close",
+                $"Date: {testServiceContext.DateHeaderValue}",
+                "Content-Length: 0",
                 "",
                 "");
         }

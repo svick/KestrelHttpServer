@@ -41,6 +41,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
         private long _lastTimestamp;
         private long _timeoutTimestamp = long.MaxValue;
+        private TimeoutAction _timeoutAction;
 
         public Connection(ListenerContext context, UvStreamHandle socket) : base(context)
         {
@@ -167,6 +168,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             if (timestamp > _timeoutTimestamp)
             {
                 ConnectionControl.CancelTimeout();
+
+                if (_timeoutAction == TimeoutAction.SendTimeoutResponse)
+                {
+                    _frame.SetBadRequestState(RequestRejectionReason.RequestTimeout);
+                }
+                
                 StopAsync();
             }
 
@@ -294,16 +301,16 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             }
         }
 
-        void IConnectionControl.SetTimeout(long milliseconds)
+        void IConnectionControl.SetTimeout(long milliseconds, TimeoutAction timeoutAction)
         {
             Debug.Assert(_timeoutTimestamp == long.MaxValue, "Concurrent timeouts are not supported");
 
-            AssignTimeout(milliseconds);
+            AssignTimeout(milliseconds, timeoutAction);
         }
 
-        void IConnectionControl.ResetTimeout(long milliseconds)
+        void IConnectionControl.ResetTimeout(long milliseconds, TimeoutAction timeoutAction)
         {
-            AssignTimeout(milliseconds);
+            AssignTimeout(milliseconds, timeoutAction);
         }
 
         void IConnectionControl.CancelTimeout()
@@ -311,8 +318,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             Interlocked.Exchange(ref _timeoutTimestamp, long.MaxValue);
         }
 
-        private void AssignTimeout(long milliseconds)
+        private void AssignTimeout(long milliseconds, TimeoutAction timeoutAction)
         {
+            _timeoutAction = timeoutAction;
+
             // Add KestrelThread.HeartbeatMilliseconds extra milliseconds since this can be called right before the next heartbeat.
             Interlocked.Exchange(ref _timeoutTimestamp, _lastTimestamp + milliseconds + KestrelThread.HeartbeatMilliseconds);
         }
