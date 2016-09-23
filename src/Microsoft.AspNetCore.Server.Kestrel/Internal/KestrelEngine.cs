@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
 using Microsoft.Extensions.Logging;
 
@@ -28,6 +30,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
         public Libuv Libuv { get; private set; }
         public ServiceContext ServiceContext { get; set; }
         public List<KestrelThread> Threads { get; private set; }
+
+        public IApplicationLifetime AppLifetime => ServiceContext.AppLifetime;
+        public IKestrelTrace Log => ServiceContext.Log;
+        public IThreadPool ThreadPool => ServiceContext.ThreadPool;
+        public KestrelServerOptions ServerOptions => ServiceContext.ServerOptions;
 
         public void Start(int count)
         {
@@ -117,7 +124,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
             if (!Task.WaitAll(disposeTasks, TimeSpan.FromSeconds(2.5)))
             {
-                ServiceContext.Log.LogError(0, null, "Disposing listeners failed");
+                Log.LogError(0, null, "Disposing listeners failed");
             }
         }
     }

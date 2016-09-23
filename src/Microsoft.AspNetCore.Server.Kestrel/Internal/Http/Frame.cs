@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
@@ -77,18 +78,36 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             SocketInput = context.SocketInput;
             SocketOutput = context.SocketOutput;
 
-            _pathBase = ListenerContext.ServerAddress.PathBase;
+            _pathBase = ServerAddress.PathBase;
 
             FrameControl = this;
-            _keepAliveMilliseconds = (long)ServiceContext.ServerOptions.Limits.KeepAliveTimeout.TotalMilliseconds;
+            _keepAliveMilliseconds = (long)ServerOptions.Limits.KeepAliveTimeout.TotalMilliseconds;
         }
 
+        public ConnectionContext ConnectionContext { get; }
         public SocketInput SocketInput { get; set; }
         public ISocketOutput SocketOutput { get; set; }
+        public Action<IFeatureCollection> PrepareRequest
+        {
+            get
+            {
+                return ConnectionContext.PrepareRequest;
+            }
+            set
+            {
+                ConnectionContext.PrepareRequest = value;
+            }
+        }
 
-        public ConnectionContext ConnectionContext { get; }
-        public ListenerContext ListenerContext => ConnectionContext.ListenerContext;
-        public ServiceContext ServiceContext => ListenerContext.ServiceContext;
+        protected IConnectionControl ConnectionControl => ConnectionContext.ConnectionControl;
+        protected IKestrelTrace Log => ConnectionContext.ListenerContext.ServiceContext.Log;
+
+        private DateHeaderValueManager DateHeaderValueManager => ConnectionContext.ListenerContext.ServiceContext.DateHeaderValueManager;
+        private ServerAddress ServerAddress => ConnectionContext.ListenerContext.ServerAddress;
+        private KestrelServerOptions ServerOptions => ConnectionContext.ListenerContext.ServiceContext.ServerOptions;
+        private IPEndPoint LocalEndPoint => ConnectionContext.LocalEndPoint;
+        private IPEndPoint RemoteEndPoint => ConnectionContext.RemoteEndPoint;
+        private string ConnectionId => ConnectionContext.ConnectionId;
 
         public string ConnectionIdFeature { get; set; }
         public IPAddress RemoteIpAddress { get; set; }
@@ -307,19 +326,19 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             StatusCode = 200;
             ReasonPhrase = null;
 
-            RemoteIpAddress = ConnectionContext.RemoteEndPoint?.Address;
-            RemotePort = ConnectionContext.RemoteEndPoint?.Port ?? 0;
+            RemoteIpAddress = RemoteEndPoint?.Address;
+            RemotePort = RemoteEndPoint?.Port ?? 0;
 
-            LocalIpAddress = ConnectionContext.LocalEndPoint?.Address;
-            LocalPort = ConnectionContext.LocalEndPoint?.Port ?? 0;
-            ConnectionIdFeature = ConnectionContext.ConnectionId;
+            LocalIpAddress = LocalEndPoint?.Address;
+            LocalPort = LocalEndPoint?.Port ?? 0;
+            ConnectionIdFeature = ConnectionId;
 
-            ConnectionContext.PrepareRequest?.Invoke(this);
+            PrepareRequest?.Invoke(this);
 
             _manuallySetRequestAbortToken = null;
             _abortedCts = null;
 
-            _remainingRequestHeadersBytesAllowed = ServiceContext.ServerOptions.Limits.MaxRequestHeadersTotalSize;
+            _remainingRequestHeadersBytesAllowed = ServerOptions.Limits.MaxRequestHeadersTotalSize;
             _requestHeadersParsed = 0;
         }
 
@@ -367,11 +386,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
                 try
                 {
-                    ConnectionContext.ConnectionControl.End(ProduceEndType.SocketDisconnect);
+                    ConnectionControl.End(ProduceEndType.SocketDisconnect);
                 }
                 catch (Exception ex)
                 {
-                    ServiceContext.Log.LogError(0, ex, "Abort");
+                    Log.LogError(0, ex, "Abort");
                 }
 
                 try
@@ -380,7 +399,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 }
                 catch (Exception ex)
                 {
-                    ServiceContext.Log.LogError(0, ex, "Abort");
+                    Log.LogError(0, ex, "Abort");
                 }
                 _abortedCts = null;
             }
@@ -661,12 +680,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
                 var responseHeaders = FrameResponseHeaders;
                 responseHeaders.Reset();
-                var dateHeaderValues = ServiceContext.DateHeaderValueManager.GetDateHeaderValues();
+                var dateHeaderValues = DateHeaderValueManager.GetDateHeaderValues();
 
                 responseHeaders.SetRawDate(dateHeaderValues.String, dateHeaderValues.Bytes);
                 responseHeaders.SetRawContentLength("0", _bytesContentLengthZero);
 
-                if (ServiceContext.ServerOptions.AddServerHeader)
+                if (ServerOptions.AddServerHeader)
                 {
                     responseHeaders.SetRawServer(Constants.ServerName, _bytesServer);
                 }
@@ -701,7 +720,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             if (_keepAlive)
             {
-                ConnectionContext.ConnectionControl.End(ProduceEndType.ConnectionKeepAlive);
+                ConnectionControl.End(ProduceEndType.ConnectionKeepAlive);
             }
 
             return TaskCache.CompletedTask;
@@ -713,7 +732,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             if (_keepAlive)
             {
-                ConnectionContext.ConnectionControl.End(ProduceEndType.ConnectionKeepAlive);
+                ConnectionControl.End(ProduceEndType.ConnectionKeepAlive);
             }
         }
 
@@ -746,7 +765,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                         responseHeaders.SetRawContentLength("0", _bytesContentLengthZero);
                     }
                 }
-                else if(_keepAlive)
+                else if (_keepAlive)
                 {
                     // Note for future reference: never change this to set _autoChunk to true on HTTP/1.0
                     // connections, even if we were to infer the client supports it because an HTTP/1.0 request
@@ -776,14 +795,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 responseHeaders.SetRawConnection("keep-alive", _bytesConnectionKeepAlive);
             }
 
-            if (ServiceContext.ServerOptions.AddServerHeader && !responseHeaders.HasServer)
+            if (ServerOptions.AddServerHeader && !responseHeaders.HasServer)
             {
                 responseHeaders.SetRawServer(Constants.ServerName, _bytesServer);
             }
 
             if (!responseHeaders.HasDate)
             {
-                var dateHeaderValues = ServiceContext.DateHeaderValueManager.GetDateHeaderValues();
+                var dateHeaderValues = DateHeaderValueManager.GetDateHeaderValues();
                 responseHeaders.SetRawDate(dateHeaderValues.String, dateHeaderValues.Bytes);
             }
 
@@ -811,14 +830,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                     return RequestLineStatus.Empty;
                 }
 
-                ConnectionContext.ConnectionControl.CancelTimeout();
+                ConnectionControl.CancelTimeout();
 
                 _requestProcessingStatus = RequestProcessingStatus.RequestStarted;
 
                 int bytesScanned;
-                if (end.Seek(ref _vectorLFs, out bytesScanned, ServiceContext.ServerOptions.Limits.MaxRequestLineSize) == -1)
+                if (end.Seek(ref _vectorLFs, out bytesScanned, ServerOptions.Limits.MaxRequestLineSize) == -1)
                 {
-                    if (bytesScanned >= ServiceContext.ServerOptions.Limits.MaxRequestLineSize)
+                    if (bytesScanned >= ServerOptions.Limits.MaxRequestLineSize)
                     {
                         RejectRequest(RequestRejectionReason.RequestLineTooLong);
                     }
@@ -1094,7 +1113,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
                     // If we've parsed the max allowed numbers of headers and we're starting a new
                     // one, we've gone over the limit.
-                    if (_requestHeadersParsed == ServiceContext.ServerOptions.Limits.MaxRequestHeaderCount)
+                    if (_requestHeadersParsed == ServerOptions.Limits.MaxRequestHeaderCount)
                     {
                         RejectRequest(RequestRejectionReason.TooManyHeaders);
                     }
@@ -1258,7 +1277,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             _keepAlive = false;
             _requestProcessingStopping = true;
             _requestRejected = true;
-            ServiceContext.Log.ConnectionBadRequest(ConnectionContext.ConnectionId, ex);
+            Log.ConnectionBadRequest(ConnectionId, ex);
         }
 
         protected void ReportApplicationError(Exception ex)
@@ -1276,7 +1295,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 _applicationException = new AggregateException(_applicationException, ex);
             }
 
-            ServiceContext.Log.ApplicationError(ConnectionContext.ConnectionId, ex);
+            Log.ApplicationError(ConnectionId, ex);
         }
 
         public enum RequestLineStatus

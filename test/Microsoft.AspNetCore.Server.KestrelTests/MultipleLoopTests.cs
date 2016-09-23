@@ -22,7 +22,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
         {
             var engine = new KestrelEngine(new TestServiceContext());
             _uv = engine.Libuv;
-            _logger = engine.ServiceContext.Log;
+            _logger = engine.Log;
         }
 
         [Fact]

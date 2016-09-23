@@ -50,13 +50,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             ConnectionId = GenerateConnectionId(Interlocked.Increment(ref _lastConnectionId));
 
-            if (ServiceContext.ServerOptions.Limits.MaxRequestBufferSize.HasValue)
+            if (ServerOptions.Limits.MaxRequestBufferSize.HasValue)
             {
-                _bufferSizeControl = new BufferSizeControl(ServiceContext.ServerOptions.Limits.MaxRequestBufferSize.Value, this, ListenerContext.Thread);
+                _bufferSizeControl = new BufferSizeControl(ServerOptions.Limits.MaxRequestBufferSize.Value, this, Thread);
             }
 
-            SocketInput = new SocketInput(ListenerContext.Thread.Memory, ServiceContext.ThreadPool, _bufferSizeControl);
-            SocketOutput = new SocketOutput(ListenerContext.Thread, _socket, this, ConnectionId, ServiceContext.Log, ServiceContext.ThreadPool);
+            SocketInput = new SocketInput(Thread.Memory, ThreadPool, _bufferSizeControl);
+            SocketOutput = new SocketOutput(Thread, _socket, this, ConnectionId, Log, ThreadPool);
 
             var tcpHandle = _socket as UvTcpHandle;
             if (tcpHandle != null)
@@ -65,8 +65,8 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 LocalEndPoint = tcpHandle.GetSockIPEndPoint();
             }
 
-            _frame = ServiceContext.FrameFactory(this);
-            _lastTimestamp = ListenerContext.Thread.Loop.Now();
+            _frame = FrameFactory(this);
+            _lastTimestamp = Thread.Loop.Now();
         }
 
         // Internal for testing
@@ -74,16 +74,26 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         {
         }
 
-        public ServiceContext ServiceContext => ListenerContext.ServiceContext;
+        public KestrelServerOptions ServerOptions => ListenerContext.ServiceContext.ServerOptions;
+
+        private Func<ConnectionContext, Frame> FrameFactory => ListenerContext.ServiceContext.FrameFactory;
+
+        private IKestrelTrace Log => ListenerContext.ServiceContext.Log;
+
+        private IThreadPool ThreadPool => ListenerContext.ServiceContext.ThreadPool;
+
+        private ServerAddress ServerAddress => ListenerContext.ServerAddress;
+
+        private KestrelThread Thread => ListenerContext.Thread;
 
         public void Start()
         {
-            ServiceContext.Log.ConnectionStart(ConnectionId);
+            Log.ConnectionStart(ConnectionId);
 
             // Start socket prior to applying the ConnectionFilter
             _socket.ReadStart(_allocCallback, _readCallback, this);
 
-            if (ServiceContext.ServerOptions.ConnectionFilter == null)
+            if (ServerOptions.ConnectionFilter == null)
             {
                 _frame.Start();
             }
@@ -94,23 +104,23 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 _filterContext = new ConnectionFilterContext
                 {
                     Connection = _libuvStream,
-                    Address = ListenerContext.ServerAddress
+                    Address = ServerAddress
                 };
 
                 try
                 {
-                    ServiceContext.ServerOptions.ConnectionFilter.OnConnectionAsync(_filterContext).ContinueWith((task, state) =>
+                    ServerOptions.ConnectionFilter.OnConnectionAsync(_filterContext).ContinueWith((task, state) =>
                     {
                         var connection = (Connection)state;
 
                         if (task.IsFaulted)
                         {
-                            connection.ServiceContext.Log.LogError(0, task.Exception, "ConnectionFilter.OnConnection");
+                            connection.Log.LogError(0, task.Exception, "ConnectionFilter.OnConnection");
                             connection.ConnectionControl.End(ProduceEndType.SocketDisconnect);
                         }
                         else if (task.IsCanceled)
                         {
-                            connection.ServiceContext.Log.LogError("ConnectionFilter.OnConnection Canceled");
+                            connection.Log.LogError("ConnectionFilter.OnConnection Canceled");
                             connection.ConnectionControl.End(ProduceEndType.SocketDisconnect);
                         }
                         else
@@ -121,7 +131,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 }
                 catch (Exception ex)
                 {
-                    ServiceContext.Log.LogError(0, ex, "ConnectionFilter.OnConnection");
+                    Log.LogError(0, ex, "ConnectionFilter.OnConnection");
                     ConnectionControl.End(ProduceEndType.SocketDisconnect);
                 }
             }
@@ -139,7 +149,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         {
             // Frame.Abort calls user code while this method is always
             // called from a libuv thread.
-            ServiceContext.ThreadPool.Run(() =>
+            ThreadPool.Run(() =>
             {
                 _frame.Abort(error);
             });
@@ -177,7 +187,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         {
             if (_filterContext.Connection != _libuvStream)
             {
-                _filteredStreamAdapter = new FilteredStreamAdapter(ConnectionId, _filterContext.Connection, ListenerContext.Thread.Memory, ServiceContext.Log, ServiceContext.ThreadPool, _bufferSizeControl);
+                _filteredStreamAdapter = new FilteredStreamAdapter(ConnectionId, _filterContext.Connection, Thread.Memory, Log, ThreadPool, _bufferSizeControl);
 
                 _frame.SocketInput = _filteredStreamAdapter.SocketInput;
                 _frame.SocketOutput = _filteredStreamAdapter.SocketOutput;
@@ -185,7 +195,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 _readInputTask = _filteredStreamAdapter.ReadInputAsync();
             }
 
-            _frame.ConnectionContext.PrepareRequest = _filterContext.PrepareRequest;
+            _frame.PrepareRequest = _filterContext.PrepareRequest;
 
             _frame.Start();
         }
@@ -228,7 +238,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             if (normalRead)
             {
-                ServiceContext.Log.ConnectionRead(ConnectionId, readCount);
+                Log.ConnectionRead(ConnectionId, readCount);
             }
             else
             {
@@ -236,7 +246,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
                 if (normalDone)
                 {
-                    ServiceContext.Log.ConnectionReadFin(ConnectionId);
+                    Log.ConnectionReadFin(ConnectionId);
                 }
             }
 
@@ -245,7 +255,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             {
                 Exception uvError;
                 handle.Libuv.Check(status, out uvError);
-                ServiceContext.Log.ConnectionError(ConnectionId, uvError);
+                Log.ConnectionError(ConnectionId, uvError);
                 error = new IOException(uvError.Message, uvError);
             }
 
@@ -259,13 +269,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
         void IConnectionControl.Pause()
         {
-            ServiceContext.Log.ConnectionPause(ConnectionId);
+            Log.ConnectionPause(ConnectionId);
             _socket.ReadStop();
         }
 
         void IConnectionControl.Resume()
         {
-            ServiceContext.Log.ConnectionResume(ConnectionId);
+            Log.ConnectionResume(ConnectionId);
             try
             {
                 _socket.ReadStart(_allocCallback, _readCallback, this);
@@ -274,7 +284,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             {
                 // ReadStart() can throw a UvException in some cases (e.g. socket is no longer connected).
                 // This should be treated the same as OnRead() seeing a "normalDone" condition.
-                ServiceContext.Log.ConnectionReadFin(ConnectionId);
+                Log.ConnectionReadFin(ConnectionId);
                 SocketInput.IncomingComplete(0, null);
             }
         }
@@ -284,11 +294,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             switch (endType)
             {
                 case ProduceEndType.ConnectionKeepAlive:
-                    ServiceContext.Log.ConnectionKeepAlive(ConnectionId);
+                    Log.ConnectionKeepAlive(ConnectionId);
                     break;
                 case ProduceEndType.SocketShutdown:
                 case ProduceEndType.SocketDisconnect:
-                    ServiceContext.Log.ConnectionDisconnect(ConnectionId);
+                    Log.ConnectionDisconnect(ConnectionId);
                     ((SocketOutput)SocketOutput).End(endType);
                     break;
             }

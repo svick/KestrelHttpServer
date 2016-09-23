@@ -52,10 +52,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
         public KestrelThread(KestrelEngine engine)
         {
             _engine = engine;
-            _appLifetime = engine.ServiceContext.AppLifetime;
-            _log = engine.ServiceContext.Log;
-            _threadPool = engine.ServiceContext.ThreadPool;
-            _shutdownTimeout = engine.ServiceContext.ServerOptions.ShutdownTimeout;
+            _appLifetime = engine.AppLifetime;
+            _log = engine.Log;
+            _threadPool = engine.ThreadPool;
+            _shutdownTimeout = engine.ServerOptions.ShutdownTimeout;
             _loop = new UvLoopHandle(_log);
             _post = new UvAsyncHandle(_log);
             _thread = new Thread(ThreadStart);
