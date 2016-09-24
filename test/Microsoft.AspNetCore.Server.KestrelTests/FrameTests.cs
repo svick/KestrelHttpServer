@@ -886,17 +886,17 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
         }
 
         [Theory]
-        [InlineData("GET/HTTP/1.1\r\n", "No space character found after method in request line.")]
-        [InlineData(" / HTTP/1.1\r\n", "Missing method.")]
-        [InlineData("GET? / HTTP/1.1\r\n", "Invalid method.")]
-        [InlineData("GET /HTTP/1.1\r\n", "No space character found after target in request line.")]
-        [InlineData("GET /a?b=cHTTP/1.1\r\n", "No space character found after target in request line.")]
-        [InlineData("GET /a%20bHTTP/1.1\r\n", "No space character found after target in request line.")]
-        [InlineData("GET /a%20b?c=dHTTP/1.1\r\n", "No space character found after target in request line.")]
-        [InlineData("GET  HTTP/1.1\r\n", "Missing request target.")]
-        [InlineData("GET / HTTP/1.1\n", "Missing CR in request line.")]
-        [InlineData("GET / \r\n", "Missing HTTP version.")]
-        [InlineData("GET / HTTP/1.1\ra\n", "Missing LF in request line.")]
+        [InlineData("GET/HTTP/1.1\r\n", "Invalid request line: GET/HTTP/1.1<0x0D><0x0A>")]
+        [InlineData(" / HTTP/1.1\r\n", "Invalid request line:  / HTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET? / HTTP/1.1\r\n", "Invalid request line: GET? / HTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET /HTTP/1.1\r\n", "Invalid request line: GET /HTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET /a?b=cHTTP/1.1\r\n", "Invalid request line: GET /a?b=cHTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET /a%20bHTTP/1.1\r\n", "Invalid request line: GET /a%20bHTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET /a%20b?c=dHTTP/1.1\r\n", "Invalid request line: GET /a%20b?c=dHTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET  HTTP/1.1\r\n", "Invalid request line: GET  HTTP/1.1<0x0D><0x0A>")]
+        [InlineData("GET / HTTP/1.1\n", "Invalid request line: GET / HTTP/1.1<0x0A>")]
+        [InlineData("GET / \r\n", "Invalid request line: GET / <0x0D><0x0A>")]
+        [InlineData("GET / HTTP/1.1\ra\n", "Invalid request line: GET / HTTP/1.1<0x0D>a<0x0A>")]
         public void TakeStartLineThrowsWhenInvalid(string requestLine, string expectedExceptionMessage)
         {
             var trace = new KestrelTrace(new TestKestrelTrace());
@@ -947,7 +947,7 @@ namespace Microsoft.AspNetCore.Server.KestrelTests
                 socketInput.IncomingData(requestLineBytes, 0, requestLineBytes.Length);
 
                 var exception = Assert.Throws<BadHttpRequestException>(() => frame.TakeStartLine(socketInput));
-                Assert.Equal("Unrecognized HTTP version.", exception.Message);
+                Assert.Equal("Unrecognized HTTP version: HTTP/1.2", exception.Message);
                 Assert.Equal(505, exception.StatusCode);
             }
         }
