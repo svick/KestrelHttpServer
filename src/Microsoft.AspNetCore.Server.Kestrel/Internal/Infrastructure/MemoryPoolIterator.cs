@@ -554,14 +554,20 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
                 var longValue = vector64[i];
                 if (longValue == 0) continue;
 
-                return (i << 3) +
-                    ((longValue & 0x00000000ffffffff) > 0
-                        ? (longValue & 0x000000000000ffff) > 0
-                            ? (longValue & 0x00000000000000ff) > 0 ? 0 : 1
-                            : (longValue & 0x0000000000ff0000) > 0 ? 2 : 3
-                        : (longValue & 0x0000ffff00000000) > 0
-                            ? (longValue & 0x000000ff00000000) > 0 ? 4 : 5
-                            : (longValue & 0x00ff000000000000) > 0 ? 6 : 7);
+                int result = i << 3;
+
+                var tmp1 = longValue & 0x00000000ffffffff;
+                result += tmp1 == 0 ? 4 : 0;
+                longValue = tmp1 == 0 ? longValue : tmp1;
+
+                var tmp2 = longValue & 0x0000ffff0000ffff;
+                result += tmp2 == 0 ? 2 : 0;
+                longValue = tmp2 == 0 ? longValue : tmp2;
+
+                var tmp3 = longValue & 0x00ff00ff00ff00ff;
+                result += tmp3 == 0 ? 1 : 0;
+
+                return result;
             }
             throw new InvalidOperationException();
         }
